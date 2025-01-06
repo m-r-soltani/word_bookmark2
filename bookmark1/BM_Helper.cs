@@ -20,6 +20,7 @@ using System.Linq;
 using DocumentFormat.OpenXml.Office2016.Presentation.Command;
 using System.Diagnostics;
 using System.Text;
+using DocumentFormat.OpenXml.Vml.Office;
 
 
 namespace BMH
@@ -61,23 +62,88 @@ namespace BMH
 
         public static bool InsertTextAtBookmark(WordprocessingDocument wordDoc, BookmarkStart bookmarkStart, string newText)
         {
-
             try
             {
-                // Debug: Log the bookmark name and new text
-                Console.WriteLine($"Attempting to insert text at bookmark. Bookmark name: {bookmarkStart.Name}, New text: {newText}");
-
                 // Find the parent element of the bookmark
                 var parentElement = bookmarkStart.Parent;
 
                 if (parentElement is DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph)
                 {
-                    // Debug: Log that the parent is a paragraph
-                    Console.WriteLine("Parent element is a Paragraph.");
-
                     // Find the first Run after the bookmark to clone its style (if needed)
                     var existingRun = paragraph.Elements<DocumentFormat.OpenXml.Wordprocessing.Run>().FirstOrDefault();
+                    var run = existingRun != null
+                        ? (DocumentFormat.OpenXml.Wordprocessing.Run)existingRun.CloneNode(true)
+                        : new DocumentFormat.OpenXml.Wordprocessing.Run();
 
+                    // Remove any existing text from the cloned Run
+                    run.RemoveAllChildren<DocumentFormat.OpenXml.Wordprocessing.Text>();
+                    run.RemoveAllChildren<DocumentFormat.OpenXml.Wordprocessing.Break>();
+
+                    // Split the new text by line breaks and create Text and Break elements
+                    var lines = newText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+                    for (int i = 0; i < lines.Length; i++)
+                    {
+                        // Append a Text element for each line
+                        run.AppendChild(new DocumentFormat.OpenXml.Wordprocessing.Text(lines[i]));
+
+                        // Add a Break element after each line except the last one
+                        if (i < lines.Length - 1)
+                        {
+                            run.AppendChild(new DocumentFormat.OpenXml.Wordprocessing.Break());
+                        }
+                    }
+
+                    // Insert the Run after the BookmarkStart
+                    paragraph.InsertAfter(run, bookmarkStart);
+                }
+                else if (parentElement != null)
+                {
+                    // Handle non-paragraph parents (e.g., tables)
+                    var run = new DocumentFormat.OpenXml.Wordprocessing.Run();
+
+                    // Split the new text by line breaks and add Text and Break elements
+                    var lines = newText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+                    for (int i = 0; i < lines.Length; i++)
+                    {
+                        run.AppendChild(new DocumentFormat.OpenXml.Wordprocessing.Text(lines[i]));
+                        if (i < lines.Length - 1)
+                        {
+                            run.AppendChild(new DocumentFormat.OpenXml.Wordprocessing.Break());
+                        }
+                    }
+
+                    parentElement.InsertAfter(run, bookmarkStart);
+                }
+                else
+                {
+                    // Parent element is null
+                    Console.WriteLine("Parent element is null. Unable to insert text.");
+                    return false;
+                }
+
+                // Text insertion successful
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during text insertion: {ex.Message}");
+                return false;
+            }
+        }
+
+
+        public static bool InsertTextAtBookmark1(WordprocessingDocument wordDoc, BookmarkStart bookmarkStart, string newText)
+        {
+
+            try
+            {
+                // Find the parent element of the bookmark
+                var parentElement = bookmarkStart.Parent;
+
+                if (parentElement is DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph)
+                {
+                    // Find the first Run after the bookmark to clone its style (if needed)
+                    var existingRun = paragraph.Elements<DocumentFormat.OpenXml.Wordprocessing.Run>().FirstOrDefault();
                     if (existingRun != null)
                     {
                         Console.WriteLine("Found an existing Run to clone style.");
@@ -86,7 +152,6 @@ namespace BMH
                     {
                         Console.WriteLine("No existing Run found. Creating a new one.");
                     }
-
                     var run = existingRun != null
                         ? (DocumentFormat.OpenXml.Wordprocessing.Run)existingRun.CloneNode(true)
                         : new DocumentFormat.OpenXml.Wordprocessing.Run();
@@ -105,9 +170,6 @@ namespace BMH
                 }
                 else if (parentElement != null)
                 {
-                    // Debug: Log that the parent is not a paragraph
-                    Console.WriteLine($"Parent element is not a Paragraph. Parent type: {parentElement.GetType().Name}");
-
                     // Handle non-paragraph parents (e.g., tables)
                     var run = new DocumentFormat.OpenXml.Wordprocessing.Run(new DocumentFormat.OpenXml.Wordprocessing.Text(newText));
 
@@ -128,9 +190,7 @@ namespace BMH
             }
             catch (Exception ex)
             {
-                // Debug: Log the exception
-                Console.WriteLine($"Error during text insertion: {ex.Message}");
-                Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+                Console.WriteLine($"Error during text insertion, Message: "+ex.Message + " StackTrace: " + ex.StackTrace);
                 return false; // Insertion failed due to an exception
             }
         }
@@ -171,7 +231,7 @@ namespace BMH
                 else
                 {
                     //error ?
-                    Console.WriteLine("Insertion Failed!");
+                    Console.WriteLine("Insertion Failed!!!!!!!!!!!!!!!!!" );
                 }
             }
         }
@@ -588,45 +648,77 @@ namespace BMH
 
         public static void EmptyBookmark(WordprocessingDocument wordDoc, BookmarkStart bookmarkStart, BookmarkEnd bookmarkEnd)
         {
-            // List to hold elements to remove
-            var elementsToRemove = new List<OpenXmlElement>();
+            var currentElement = bookmarkStart.NextSibling();
 
-            // Start from the sibling after the BookmarkStart element and iterate until the BookmarkEnd
-            for (var currentElement = bookmarkStart.NextSibling(); currentElement != null && currentElement != bookmarkEnd; currentElement = currentElement.NextSibling())
+            while (currentElement != null && currentElement != bookmarkEnd)
             {
-                // Collect all elements in the range to be removed
-                elementsToRemove.Add(currentElement);
+                var nextElement = currentElement.NextSibling(); // Cache next sibling
 
-                // Recursively collect child elements if needed (for nested elements)
-                CollectNestedElements(currentElement, elementsToRemove);
-            }
-
-            // Remove all collected elements
-            foreach (var element in elementsToRemove)
-            {
-                // Safety check in case something is unexpectedly null
-                if (element != null)
+                // Skip removing nested bookmarks' start and end
+                if (!(currentElement is BookmarkStart || currentElement is BookmarkEnd))
                 {
-                    element.Remove();
+                    currentElement.Remove(); // Remove only non-bookmark elements
                 }
+
+                currentElement = nextElement; // Move to the next sibling
             }
         }
 
-        // Helper method to remove child elements recursively in EmptyBookmark method
-        private static void CollectNestedElements(OpenXmlElement element, List<OpenXmlElement> elementsToRemove)
-        {
-            if (element == null) return; // Safety check for null
 
-            // Loop through all child elements and add them to the list to be removed
-            foreach (var child in element.Elements())
-            {
-                if (child == null) continue; // Safety check for null child
+        //public static void EmptyBookmark(WordprocessingDocument wordDoc, BookmarkStart bookmarkStart, BookmarkEnd bookmarkEnd)
+        //{
+        //    // Start from the sibling after the BookmarkStart element and iterate until the BookmarkEnd
+        //    var currentElement = bookmarkStart.NextSibling();
+        //    while (currentElement != null && currentElement != bookmarkEnd)
+        //    {
+        //        var nextElement = currentElement.NextSibling(); // Cache next sibling
+        //        currentElement.Remove(); // Remove current element
+        //        currentElement = nextElement; // Move to the next sibling
+        //    }
+        //}
 
-                elementsToRemove.Add(child);
-                // Recursively collect child elements if they have their own children
-                CollectNestedElements(child, elementsToRemove);
-            }
-        }
+
+        //public static void EmptyBookmark(WordprocessingDocument wordDoc, BookmarkStart bookmarkStart, BookmarkEnd bookmarkEnd)
+        //{
+        //    // List to hold elements to remove
+        //    var elementsToRemove = new List<OpenXmlElement>();
+
+        //    // Start from the sibling after the BookmarkStart element and iterate until the BookmarkEnd
+        //    for (var currentElement = bookmarkStart.NextSibling(); currentElement != null && currentElement != bookmarkEnd; currentElement = currentElement.NextSibling())
+        //    {
+        //        // Collect all elements in the range to be removed
+        //        elementsToRemove.Add(currentElement);
+
+        //        // Recursively collect child elements if needed (for nested elements)
+        //        CollectNestedElements(currentElement, elementsToRemove);
+        //    }
+
+        //    // Remove all collected elements
+        //    foreach (var element in elementsToRemove)
+        //    {
+        //        // Safety check in case something is unexpectedly null
+        //        if (element != null)
+        //        {
+        //            element.Remove();
+        //        }
+        //    }
+        //}
+
+        //// Helper method to remove child elements recursively in EmptyBookmark method
+        //private static void CollectNestedElements(OpenXmlElement element, List<OpenXmlElement> elementsToRemove)
+        //{
+        //    if (element == null) return; // Safety check for null
+
+        //    // Loop through all child elements and add them to the list to be removed
+        //    foreach (var child in element.Elements())
+        //    {
+        //        if (child == null) continue; // Safety check for null child
+
+        //        elementsToRemove.Add(child);
+        //        // Recursively collect child elements if they have their own children
+        //        CollectNestedElements(child, elementsToRemove);
+        //    }
+        //}
 
 
 
