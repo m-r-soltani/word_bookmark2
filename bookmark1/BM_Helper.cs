@@ -67,6 +67,229 @@ namespace BMH
                 // Find the parent element of the bookmark
                 var parentElement = bookmarkStart.Parent;
 
+                if (parentElement == null)
+                {
+                    Console.WriteLine("Parent element is null. Unable to insert text.");
+                    return false;
+                }
+
+                // Create a new Run element for the bookmark's content
+                var run = new DocumentFormat.OpenXml.Wordprocessing.Run();
+
+                // Split the new text by line breaks
+                var lines = newText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+
+                // Append Text and Break elements for each line
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    // Add a Text element for the current line
+                    if (!string.IsNullOrEmpty(lines[i]))
+                    {
+                        var textElement = new DocumentFormat.OpenXml.Wordprocessing.Text(lines[i])
+                        {
+                            Space = SpaceProcessingModeValues.Preserve // Preserve spaces
+                        };
+                        run.AppendChild(textElement);
+                    }
+
+                    // Add a Break element if it's not the last line
+                    if (i < lines.Length - 1)
+                    {
+                        run.AppendChild(new DocumentFormat.OpenXml.Wordprocessing.Break());
+                    }
+                }
+
+                // Insert the Run after the BookmarkStart
+                bookmarkStart.InsertAfterSelf(run);
+
+                // Text insertion successful
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during text insertion: {ex.Message}");
+                return false;
+            }
+        }
+
+
+        public static bool InsertTextAtBookmark_likelastonelinebreaknotgood5(WordprocessingDocument wordDoc, BookmarkStart bookmarkStart, string newText)
+        {
+            try
+            {
+                // Validate the parent element
+                var parentElement = bookmarkStart.Parent;
+                if (parentElement == null)
+                {
+                    Console.WriteLine("Parent element is null. Unable to insert text.");
+                    return false;
+                }
+
+                // Split the new text by line breaks
+                var lines = newText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+
+                // Iterate over the lines and create paragraphs for each
+                foreach (var line in lines)
+                {
+                    // Create a new paragraph for each line
+                    var paragraph = new DocumentFormat.OpenXml.Wordprocessing.Paragraph();
+
+                    // Add a Run and Text element with the line's content
+                    if (!string.IsNullOrEmpty(line))
+                    {
+                        var run = new DocumentFormat.OpenXml.Wordprocessing.Run();
+                        var textElement = new DocumentFormat.OpenXml.Wordprocessing.Text(line)
+                        {
+                            Space = SpaceProcessingModeValues.Preserve // Preserve spaces
+                        };
+                        run.AppendChild(textElement);
+                        paragraph.AppendChild(run);
+                    }
+
+                    // Insert the paragraph after the BookmarkStart's parent
+                    parentElement.InsertAfterSelf(paragraph);
+                }
+
+                // Text insertion successful
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during text insertion: {ex.Message}");
+                return false;
+            }
+        }
+
+
+        public static bool InsertTextAtBookmark_simplified_linebreak_stretches4(WordprocessingDocument wordDoc, BookmarkStart bookmarkStart, string newText)
+        {
+            try
+            {
+                // Validate the parent element
+                var parentElement = bookmarkStart.Parent;
+                if (parentElement == null)
+                {
+                    Console.WriteLine("Parent element is null. Unable to insert text.");
+                    return false;
+                }
+
+                // Create a new Run element
+                var run = new DocumentFormat.OpenXml.Wordprocessing.Run();
+
+                // Split the new text by line breaks and add Text and Break elements
+                var lines = newText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    // Add the text element
+                    if (!string.IsNullOrEmpty(lines[i]))
+                    {
+                        var textElement = new DocumentFormat.OpenXml.Wordprocessing.Text(lines[i])
+                        {
+                            Space = SpaceProcessingModeValues.Preserve // Preserve spaces
+                        };
+                        run.AppendChild(textElement);
+                    }
+
+                    // Add a break if it's not the last line
+                    if (i < lines.Length - 1)
+                    {
+                        run.AppendChild(new DocumentFormat.OpenXml.Wordprocessing.Break());
+                    }
+                }
+
+                // Insert the Run element after the BookmarkStart
+                parentElement.InsertAfter(run, bookmarkStart);
+
+                // Text insertion successful
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during text insertion: {ex.Message}");
+                return false;
+            }
+        }
+
+
+        public static bool InsertTextAtBookmark_workswell3(WordprocessingDocument wordDoc, BookmarkStart bookmarkStart, string newText)
+        {
+            try
+            {
+                // Find the parent element of the bookmark
+                var parentElement = bookmarkStart.Parent;
+
+                if (parentElement is DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph)
+                {
+                    // Create a new Run element
+                    var run = new DocumentFormat.OpenXml.Wordprocessing.Run();
+
+                    // Split the new text by line breaks and add Text and Break elements
+                    var lines = newText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+                    for (int i = 0; i < lines.Length; i++)
+                    {
+                        if (!string.IsNullOrEmpty(lines[i]))
+                        {
+                            var textElement = new DocumentFormat.OpenXml.Wordprocessing.Text(lines[i])
+                            {
+                                Space = SpaceProcessingModeValues.Preserve // Preserve spaces
+                            };
+                            run.AppendChild(textElement);
+                        }
+
+                        if (i < lines.Length - 1)
+                        {
+                            run.AppendChild(new DocumentFormat.OpenXml.Wordprocessing.Break()); // Add a break for all but the last line
+                        }
+                    }
+
+                    // Insert the Run after the BookmarkStart
+                    paragraph.InsertAfter(run, bookmarkStart);
+                }
+                else if (parentElement != null)
+                {
+                    // Handle non-paragraph parents (e.g., tables)
+                    var run = new DocumentFormat.OpenXml.Wordprocessing.Run();
+                    var lines = newText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+
+                    foreach (var line in lines)
+                    {
+                        if (!string.IsNullOrEmpty(line))
+                        {
+                            var textElement = new DocumentFormat.OpenXml.Wordprocessing.Text(line)
+                            {
+                                Space = SpaceProcessingModeValues.Preserve
+                            };
+                            run.AppendChild(textElement);
+                        }
+                        run.AppendChild(new DocumentFormat.OpenXml.Wordprocessing.Break());
+                    }
+
+                    parentElement.InsertAfter(run, bookmarkStart);
+                }
+                else
+                {
+                    Console.WriteLine("Parent element is null. Unable to insert text.");
+                    return false;
+                }
+
+                // Text insertion successful
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during text insertion: {ex.Message}");
+                return false;
+            }
+        }
+
+
+        public static bool InsertTextAtBookmark2(WordprocessingDocument wordDoc, BookmarkStart bookmarkStart, string newText)
+        {
+            try
+            {
+                // Find the parent element of the bookmark
+                var parentElement = bookmarkStart.Parent;
+
                 if (parentElement is DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph)
                 {
                     // Find the first Run after the bookmark to clone its style (if needed)
