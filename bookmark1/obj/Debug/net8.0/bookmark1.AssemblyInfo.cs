@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("bookmark1")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+76ddd1bddfc0b976e14aaee9fdc242f25172a2c5")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+bfe12cb1aa560d6c25df49c6773232cdeb427d35")]
 [assembly: System.Reflection.AssemblyProductAttribute("bookmark1")]
 [assembly: System.Reflection.AssemblyTitleAttribute("bookmark1")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

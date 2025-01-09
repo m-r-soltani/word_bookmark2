@@ -64,45 +64,42 @@ namespace BMH
         {
             try
             {
-                // Find the parent element of the bookmark
-                var parentElement = bookmarkStart.Parent;
-
-                if (parentElement == null)
+                // Find the parent run or create a new one
+                var runElement = bookmarkStart.Parent.Descendants<DocumentFormat.OpenXml.Wordprocessing.Run>().FirstOrDefault();
+                if (runElement == null)
                 {
-                    Console.WriteLine("Parent element is null. Unable to insert text.");
-                    return false;
+                    runElement = new DocumentFormat.OpenXml.Wordprocessing.Run();
+                    bookmarkStart.InsertAfterSelf(runElement);
                 }
 
-                // Create a new Run element for the bookmark's content
-                var run = new DocumentFormat.OpenXml.Wordprocessing.Run();
+                // Clear existing text in the run
+                var textElements = runElement.Elements<DocumentFormat.OpenXml.Wordprocessing.Text>().ToList();
+                foreach (var text in textElements)
+                {
+                    text.Remove();
+                }
 
-                // Split the new text by line breaks
+                // Split the new text by line breaks and add it to the run
                 var lines = newText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
-
-                // Append Text and Break elements for each line
                 for (int i = 0; i < lines.Length; i++)
                 {
-                    // Add a Text element for the current line
                     if (!string.IsNullOrEmpty(lines[i]))
                     {
                         var textElement = new DocumentFormat.OpenXml.Wordprocessing.Text(lines[i])
                         {
-                            Space = SpaceProcessingModeValues.Preserve // Preserve spaces
+                            Space = DocumentFormat.OpenXml.SpaceProcessingModeValues.Preserve
                         };
-                        run.AppendChild(textElement);
+                        runElement.AppendChild(textElement);
                     }
 
-                    // Add a Break element if it's not the last line
+                    // Add a line break if it's not the last line
                     if (i < lines.Length - 1)
                     {
-                        run.AppendChild(new DocumentFormat.OpenXml.Wordprocessing.Break());
+                        runElement.AppendChild(new DocumentFormat.OpenXml.Wordprocessing.Break());
                     }
                 }
 
-                // Insert the Run after the BookmarkStart
-                bookmarkStart.InsertAfterSelf(run);
-
-                // Text insertion successful
+                Console.WriteLine($"Text successfully inserted at bookmark: {bookmarkStart.Name}");
                 return true;
             }
             catch (Exception ex)
@@ -111,7 +108,7 @@ namespace BMH
                 return false;
             }
         }
-        
+
         ///////////////////////////////////////////Update Image Bookmarks///////////////////////////////////////////
         public static void UpdateImageBookmarks(string filePath, Dictionary<string, string> bookmarksContent)
         {
@@ -382,6 +379,10 @@ namespace BMH
             }
         }
 
+
+
+
+
         private static bool InsertImageAtBookmark(WordprocessingDocument wordDoc, BookmarkStart bookmarkStart, string imagePath)
         {
             if (!File.Exists(imagePath))
@@ -390,25 +391,21 @@ namespace BMH
                 return false;
             }
 
-            // Determine the parent element and part where the image will be inserted
-            var mainPart = wordDoc.MainDocumentPart;
-            OpenXmlPart targetPart = null;
-            var parentElement = bookmarkStart.Parent;
-
-            // Determine if the bookmark is inside a header, footer, or main document
-            if (parentElement.Ancestors<Header>().Any())
+            // Determine if the bookmark is in a header, footer, or main document
+            OpenXmlPart targetPart;
+            if (bookmarkStart.Parent.Ancestors<DocumentFormat.OpenXml.Wordprocessing.Header>().Any())
             {
                 targetPart = wordDoc.MainDocumentPart.HeaderParts
                     .FirstOrDefault(h => h.RootElement.Descendants<BookmarkStart>().Contains(bookmarkStart));
             }
-            else if (parentElement.Ancestors<Footer>().Any())
+            else if (bookmarkStart.Parent.Ancestors<DocumentFormat.OpenXml.Wordprocessing.Footer>().Any())
             {
                 targetPart = wordDoc.MainDocumentPart.FooterParts
                     .FirstOrDefault(f => f.RootElement.Descendants<BookmarkStart>().Contains(bookmarkStart));
             }
             else
             {
-                targetPart = mainPart;
+                targetPart = wordDoc.MainDocumentPart; // Default to main document
             }
 
             if (targetPart == null)
@@ -417,43 +414,36 @@ namespace BMH
                 return false;
             }
 
-            // Add the image part to the determined part
-            ImagePart imagePart = null;
-            if (targetPart is MainDocumentPart mainDocPart)
+            // Add the image to the determined part
+            ImagePart imagePart = targetPart switch
             {
-                imagePart = mainDocPart.AddImagePart(ImagePartType.Png);
-            }
-            else if (targetPart is HeaderPart headerPart)
-            {
-                imagePart = headerPart.AddImagePart(ImagePartType.Png);
-            }
-            else if (targetPart is FooterPart footerPart)
-            {
-                imagePart = footerPart.AddImagePart(ImagePartType.Png);
-            }
+                MainDocumentPart mainPart => mainPart.AddImagePart(DocumentFormat.OpenXml.Packaging.ImagePartType.Png),
+                HeaderPart headerPart => headerPart.AddImagePart(DocumentFormat.OpenXml.Packaging.ImagePartType.Png),
+                FooterPart footerPart => footerPart.AddImagePart(DocumentFormat.OpenXml.Packaging.ImagePartType.Png),
+                _ => throw new InvalidOperationException("Unsupported target part.")
+            };
 
-            if (imagePart == null)
-            {
-                Console.WriteLine("Failed to add an image part.");
-                return false;
-            }
-
-            // Load the image data into the image part
             using (FileStream stream = new FileStream(imagePath, FileMode.Open))
             {
                 imagePart.FeedData(stream);
             }
 
-            // Get image dimensions (you can calculate this based on the actual image dimensions if needed)
-            const long width = 120 * 914400 / 96; // Adjust width in EMUs
-            const long height = 70 * 914400 / 96; // Adjust height in EMUs
+            // Define image dimensions
+            const long width = 120 * 914400 / 96; // Adjust as needed
+            const long height = 70 * 914400 / 96;
 
-            // Create the image element
+            // Create the drawing element
             var drawingElement = CreateImageElement(((OpenXmlPartContainer)targetPart).GetIdOfPart(imagePart), width, height);
 
-            // Insert the Run containing the image at the bookmark
-            var runElement = new DocumentFormat.OpenXml.Wordprocessing.Run(drawingElement);
-            parentElement.InsertAfter(runElement, bookmarkStart);
+            // Insert the image in the bookmark's context
+            var runElement = bookmarkStart.Parent.Descendants<DocumentFormat.OpenXml.Wordprocessing.Run>().FirstOrDefault();
+            if (runElement == null)
+            {
+                runElement = new DocumentFormat.OpenXml.Wordprocessing.Run();
+                bookmarkStart.InsertAfterSelf(runElement);
+            }
+
+            runElement.Append(drawingElement);
 
             Console.WriteLine($"Image successfully inserted at bookmark: {bookmarkStart.Name}");
             return true;
@@ -569,166 +559,37 @@ namespace BMH
 
             while (currentElement != null && currentElement != bookmarkEnd)
             {
-                var nextElement = currentElement.NextSibling(); // Cache next sibling
+                var nextElement = currentElement.NextSibling();
 
-                // Skip removing nested bookmarks' start and end
-                if (!(currentElement is BookmarkStart || currentElement is BookmarkEnd))
+                // Remove text or image content while preserving styles
+                if (currentElement is DocumentFormat.OpenXml.Wordprocessing.Run runElement)
                 {
-                    currentElement.Remove(); // Remove only non-bookmark elements
+                    // Remove text elements
+                    var textElements = runElement.Elements<DocumentFormat.OpenXml.Wordprocessing.Text>().ToList();
+                    foreach (var text in textElements)
+                    {
+                        text.Remove();
+                    }
+
+                    // Remove drawing/image elements
+                    var drawingElements = runElement.Elements<DocumentFormat.OpenXml.Wordprocessing.Drawing>().ToList();
+                    foreach (var drawing in drawingElements)
+                    {
+                        drawing.Remove();
+                    }
+
+
+                    // If the run becomes empty, retain it for style preservation
+                    if (!runElement.HasChildren)
+                    {
+                        runElement.Remove();
+                    }
                 }
 
-                currentElement = nextElement; // Move to the next sibling
+                currentElement = nextElement;
             }
         }
 
-
-        //public static void EmptyBookmark(WordprocessingDocument wordDoc, BookmarkStart bookmarkStart, BookmarkEnd bookmarkEnd)
-        //{
-        //    // Start from the sibling after the BookmarkStart element and iterate until the BookmarkEnd
-        //    var currentElement = bookmarkStart.NextSibling();
-        //    while (currentElement != null && currentElement != bookmarkEnd)
-        //    {
-        //        var nextElement = currentElement.NextSibling(); // Cache next sibling
-        //        currentElement.Remove(); // Remove current element
-        //        currentElement = nextElement; // Move to the next sibling
-        //    }
-        //}
-
-
-        //public static void EmptyBookmark(WordprocessingDocument wordDoc, BookmarkStart bookmarkStart, BookmarkEnd bookmarkEnd)
-        //{
-        //    // List to hold elements to remove
-        //    var elementsToRemove = new List<OpenXmlElement>();
-
-        //    // Start from the sibling after the BookmarkStart element and iterate until the BookmarkEnd
-        //    for (var currentElement = bookmarkStart.NextSibling(); currentElement != null && currentElement != bookmarkEnd; currentElement = currentElement.NextSibling())
-        //    {
-        //        // Collect all elements in the range to be removed
-        //        elementsToRemove.Add(currentElement);
-
-        //        // Recursively collect child elements if needed (for nested elements)
-        //        CollectNestedElements(currentElement, elementsToRemove);
-        //    }
-
-        //    // Remove all collected elements
-        //    foreach (var element in elementsToRemove)
-        //    {
-        //        // Safety check in case something is unexpectedly null
-        //        if (element != null)
-        //        {
-        //            element.Remove();
-        //        }
-        //    }
-        //}
-
-        //// Helper method to remove child elements recursively in EmptyBookmark method
-        //private static void CollectNestedElements(OpenXmlElement element, List<OpenXmlElement> elementsToRemove)
-        //{
-        //    if (element == null) return; // Safety check for null
-
-        //    // Loop through all child elements and add them to the list to be removed
-        //    foreach (var child in element.Elements())
-        //    {
-        //        if (child == null) continue; // Safety check for null child
-
-        //        elementsToRemove.Add(child);
-        //        // Recursively collect child elements if they have their own children
-        //        CollectNestedElements(child, elementsToRemove);
-        //    }
-        //}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        //refactored simple inserttextatbookmark
-        //public static void InsertTextAtBookmark2(WordprocessingDocument wordDoc, BookmarkStart bookmarkStart, string newText)
-        //{
-        //    // Find the parent element of the bookmark
-        //    var parentElement = bookmarkStart.Parent;
-
-        //    if (parentElement is DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph)
-        //    {
-        //        // Insert a new Run containing the text directly into the existing Paragraph
-        //        var run = new DocumentFormat.OpenXml.Wordprocessing.Run(new DocumentFormat.OpenXml.Wordprocessing.Text(newText));
-        //        paragraph.InsertAfter(run, bookmarkStart);
-        //    }
-        //    else if (parentElement != null)
-        //    {
-        //        // For non-paragraph parents (like tables), add the new content in the parent
-        //        var run = new DocumentFormat.OpenXml.Wordprocessing.Run(new DocumentFormat.OpenXml.Wordprocessing.Text(newText));
-        //        parentElement.InsertAfter(run, bookmarkStart);
-        //    }
-        //    else
-        //    {
-        //        throw new InvalidOperationException("The bookmark's parent element could not be determined.");
-        //    }
-        //}
-
-        //function made inserttextbookmark
-        //public static void InsertTextAtBookmark(WordprocessingDocument wordDoc, BookmarkStart bookmarkStart, string newText)
-        //{
-        //    // Create a new run with the new text content (use Wordprocessing namespace)
-        //    var run = new DocumentFormat.OpenXml.Wordprocessing.Run(new DocumentFormat.OpenXml.Wordprocessing.Text(newText));
-
-        //    // Create a new paragraph to hold the new run (use Wordprocessing namespace)
-        //    var paragraph = new DocumentFormat.OpenXml.Wordprocessing.Paragraph(run);
-
-        //    // Find the parent element (usually a paragraph) of the BookmarkStart
-        //    var parentElement = bookmarkStart.Parent as OpenXmlElement;
-
-        //    if (parentElement != null)
-        //    {
-        //        // Insert the new content at the position where the bookmark is located
-        //        parentElement.InsertAfter(paragraph, bookmarkStart);
-        //    }
-
-        //}
 
 
     }
