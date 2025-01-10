@@ -380,365 +380,6 @@ namespace BMH
             }
         }
 
-
-
-
-
-
-
-
-
-
-        //private static (long width, long height) GetBookmarkSize(BookmarkStart bookmarkStart)
-        //{
-        //    const long defaultWidth = 500000;  // Default width in EMUs (approx. 5 cm)
-        //    const long defaultHeight = 200000; // Default height in EMUs (approx. 2 cm)
-
-        //    // Try to determine size based on the parent element's layout
-        //    var parentElement = bookmarkStart.Parent;
-        //    if (parentElement != null)
-        //    {
-        //        // Check for siblings within the same parent (e.g., Runs or Paragraphs)
-        //        var siblings = parentElement.ChildElements;
-
-        //        // Estimate dimensions based on sibling content
-        //        if (siblings != null && siblings.Count > 0)
-        //        {
-        //            // Example: Sum up sibling widths (this is an approximation)
-        //            long estimatedWidth = siblings.Sum(s => s.OuterXml.Length * 100); // Approx. width per character
-        //            long estimatedHeight = siblings.Count * 2000;                    // Approx. height per sibling
-
-        //            // Ensure we don't return zero dimensions
-        //            if (estimatedWidth > 0 && estimatedHeight > 0)
-        //            {
-        //                return (estimatedWidth, estimatedHeight);
-        //            }
-        //        }
-        //    }
-
-        //    // Fallback to default dimensions if no exact size can be determined
-        //    return (defaultWidth, defaultHeight);
-        //}
-
-        //private static bool InsertImageAtBookmark(WordprocessingDocument wordDoc, BookmarkStart bookmarkStart, string imagePath)
-        //{
-        //    if (!File.Exists(imagePath))
-        //    {
-        //        Console.WriteLine($"Image file not found: {imagePath}");
-        //        return false;
-        //    }
-
-        //    // Get the dimensions of the bookmark's bounding box
-        //    var (bookmarkWidth, bookmarkHeight) = GetBookmarkSize(bookmarkStart);
-
-        //    // Determine the target part (main document, header, or footer)
-        //    OpenXmlPart targetPart;
-        //    if (bookmarkStart.Parent.Ancestors<DocumentFormat.OpenXml.Wordprocessing.Header>().Any())
-        //    {
-        //        targetPart = wordDoc.MainDocumentPart.HeaderParts
-        //            .FirstOrDefault(h => h.RootElement.Descendants<BookmarkStart>().Contains(bookmarkStart));
-        //    }
-        //    else if (bookmarkStart.Parent.Ancestors<DocumentFormat.OpenXml.Wordprocessing.Footer>().Any())
-        //    {
-        //        targetPart = wordDoc.MainDocumentPart.FooterParts
-        //            .FirstOrDefault(f => f.RootElement.Descendants<BookmarkStart>().Contains(bookmarkStart));
-        //    }
-        //    else
-        //    {
-        //        targetPart = wordDoc.MainDocumentPart; // Default to main document
-        //    }
-
-        //    if (targetPart == null)
-        //    {
-        //        Console.WriteLine("Unable to determine the target part for the bookmark.");
-        //        return false;
-        //    }
-
-        //    // Add the image to the target part
-        //    ImagePart imagePart = targetPart switch
-        //    {
-        //        MainDocumentPart mainPart => mainPart.AddImagePart(DocumentFormat.OpenXml.Packaging.ImagePartType.Png),
-        //        HeaderPart headerPart => headerPart.AddImagePart(DocumentFormat.OpenXml.Packaging.ImagePartType.Png),
-        //        FooterPart footerPart => footerPart.AddImagePart(DocumentFormat.OpenXml.Packaging.ImagePartType.Png),
-        //        _ => throw new InvalidOperationException("Unsupported target part.")
-        //    };
-
-        //    using (FileStream stream = new FileStream(imagePath, FileMode.Open))
-        //    {
-        //        imagePart.FeedData(stream);
-        //    }
-
-        //    // Create the drawing element with the calculated size
-        //    var drawingElement = CreateImageElement(((OpenXmlPartContainer)targetPart).GetIdOfPart(imagePart), bookmarkWidth, bookmarkHeight);
-
-        //    // Replace content within the bookmark
-        //    EmptyBookmark(wordDoc, bookmarkStart, FindBookmarkEnd(wordDoc, bookmarkStart.Id));
-
-        //    // Insert the image
-        //    var runElement = bookmarkStart.Parent.Descendants<DocumentFormat.OpenXml.Wordprocessing.Run>().FirstOrDefault();
-        //    if (runElement == null)
-        //    {
-        //        runElement = new DocumentFormat.OpenXml.Wordprocessing.Run();
-        //        bookmarkStart.InsertAfterSelf(runElement);
-        //    }
-        //    runElement.Append(drawingElement);
-
-        //    Console.WriteLine($"Image successfully inserted at bookmark: {bookmarkStart.Name}");
-        //    return true;
-        //}
-
-        //private static Drawing CreateImageElement(string relationshipId, long bookmarkWidth, long bookmarkHeight)
-        //{
-        //    return new Drawing(
-        //        new Inline(
-        //            new Extent { Cx = bookmarkWidth, Cy = bookmarkHeight },
-        //            new EffectExtent
-        //            {
-        //                LeftEdge = 0L,
-        //                TopEdge = 0L,
-        //                RightEdge = 0L,
-        //                BottomEdge = 0L
-        //            },
-        //            new DocProperties
-        //            {
-        //                Id = (UInt32Value)1U,
-        //                Name = "Picture"
-        //            },
-        //            new DocumentFormat.OpenXml.Drawing.NonVisualGraphicFrameDrawingProperties(new GraphicFrameLocks { NoChangeAspect = true }),
-        //            new Graphic(
-        //                new GraphicData(
-        //                    new DocumentFormat.OpenXml.Drawing.Pictures.Picture(
-        //                        new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureProperties(
-        //                            new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualDrawingProperties
-        //                            {
-        //                                Id = (UInt32Value)0U,
-        //                                Name = "Replaced Image"
-        //                            },
-        //                            new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureDrawingProperties()
-        //                        ),
-        //                        new DocumentFormat.OpenXml.Drawing.Pictures.BlipFill(
-        //                            new Blip { Embed = relationshipId },
-        //                            new Stretch(new FillRectangle())
-        //                        ),
-        //                        new DocumentFormat.OpenXml.Drawing.Pictures.ShapeProperties(
-        //                            new Transform2D(
-        //                                new Offset { X = 0L, Y = 0L },
-        //                                new Extents { Cx = bookmarkWidth, Cy = bookmarkHeight }
-        //                            ),
-        //                            new PresetGeometry(new AdjustValueList())
-        //                            { Preset = ShapeTypeValues.Rectangle }
-        //                        )
-        //                    )
-        //                )
-        //                { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" }
-        //            )
-        //        )
-        //        {
-        //            DistanceFromTop = (UInt32Value)0U,
-        //            DistanceFromBottom = (UInt32Value)0U,
-        //            DistanceFromLeft = (UInt32Value)0U,
-        //            DistanceFromRight = (UInt32Value)0U,
-        //            EditId = "50D07946"
-        //        });
-        //}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        //private static (long width, long height) GetFittedImageSize(int imageWidth, int imageHeight, long bookmarkWidth, long bookmarkHeight)
-        //{
-        //    // Calculate the aspect ratio of the image
-        //    float aspectRatio = (float)imageWidth / imageHeight;
-
-        //    // Calculate the maximum width and height that the image can fit into the bookmark box
-        //    long fittedWidth = bookmarkWidth;
-        //    long fittedHeight = (long)(fittedWidth / aspectRatio);
-
-        //    // If the calculated height exceeds the bookmark's height, adjust based on height
-        //    if (fittedHeight > bookmarkHeight)
-        //    {
-        //        fittedHeight = bookmarkHeight;
-        //        fittedWidth = (long)(fittedHeight * aspectRatio);
-        //    }
-
-        //    return (fittedWidth, fittedHeight);
-        //}
-
-        //private static bool InsertImageAtBookmark2(WordprocessingDocument wordDoc, BookmarkStart bookmarkStart, string imagePath)
-        //{
-        //    if (!File.Exists(imagePath))
-        //    {
-        //        Console.WriteLine($"Image file not found: {imagePath}");
-        //        return false;
-        //    }
-
-        //    // Determine the target part (main document, header, or footer)
-        //    OpenXmlPart targetPart = null;
-
-        //    if (bookmarkStart.Parent.Ancestors<DocumentFormat.OpenXml.Wordprocessing.Header>().Any())
-        //    {
-        //        targetPart = wordDoc.MainDocumentPart.HeaderParts
-        //            .FirstOrDefault(h => h.RootElement.Descendants<BookmarkStart>().Contains(bookmarkStart));
-        //    }
-        //    else if (bookmarkStart.Parent.Ancestors<DocumentFormat.OpenXml.Wordprocessing.Footer>().Any())
-        //    {
-        //        targetPart = wordDoc.MainDocumentPart.FooterParts
-        //            .FirstOrDefault(f => f.RootElement.Descendants<BookmarkStart>().Contains(bookmarkStart));
-        //    }
-        //    else
-        //    {
-        //        targetPart = wordDoc.MainDocumentPart; // Default to main document
-        //    }
-
-        //    if (targetPart == null)
-        //    {
-        //        Console.WriteLine("Unable to determine the target part for the bookmark.");
-        //        return false;
-        //    }
-
-        //    // Add image part to the determined target part (header/footer or main document)
-        //    ImagePart imagePart = targetPart switch
-        //    {
-        //        MainDocumentPart mainPart => mainPart.AddImagePart(DocumentFormat.OpenXml.Packaging.ImagePartType.Png),
-        //        HeaderPart headerPart => headerPart.AddImagePart(DocumentFormat.OpenXml.Packaging.ImagePartType.Png),
-        //        FooterPart footerPart => footerPart.AddImagePart(DocumentFormat.OpenXml.Packaging.ImagePartType.Png),
-        //        _ => throw new InvalidOperationException("Unsupported target part.")
-        //    };
-
-        //    // Open the image and write it to the image part
-        //    using (FileStream stream = new FileStream(imagePath, FileMode.Open))
-        //    {
-        //        imagePart.FeedData(stream);
-        //    }
-
-        //    // Create the drawing element for the image with calculated size
-        //    var drawingElement = CreateImageElement2(((OpenXmlPartContainer)targetPart).GetIdOfPart(imagePart), imagePath, 2000000, 500000);
-
-        //    // Find the run element containing the bookmark, or create one if it doesn't exist
-        //    var runElement = bookmarkStart.Parent.Descendants<DocumentFormat.OpenXml.Wordprocessing.Run>()
-        //        .FirstOrDefault(run => run.Descendants<BookmarkStart>().Contains(bookmarkStart));
-
-        //    if (runElement == null)
-        //    {
-        //        runElement = new DocumentFormat.OpenXml.Wordprocessing.Run();
-        //        bookmarkStart.InsertAfterSelf(runElement);
-        //    }
-
-        //    // Insert the image into the run element
-        //    runElement.Append(drawingElement);
-
-        //    Console.WriteLine($"Image successfully inserted at bookmark: {bookmarkStart.Name}");
-        //    return true;
-        //}
-
-        //private static Drawing CreateImageElement2(string relationshipId, string imagePath, long bookmarkWidth, long bookmarkHeight)
-        //{
-        //    // Get the image dimensions in pixels
-        //    using (var image = System.Drawing.Image.FromFile(imagePath))
-        //    {
-        //        // Calculate the dimensions of the image to fit within the bookmark's size
-        //        long imageWidth = image.Width * 914400 / 96; // Convert from pixels to EMUs (English Metric Units)
-        //        long imageHeight = image.Height * 914400 / 96;
-
-        //        // Ensure the image fits within the bookmark's box size while maintaining aspect ratio
-        //        double aspectRatio = (double)image.Width / image.Height;
-        //        if (imageWidth > bookmarkWidth)
-        //        {
-        //            imageWidth = bookmarkWidth;
-        //            imageHeight = (long)(imageWidth / aspectRatio);
-        //        }
-        //        if (imageHeight > bookmarkHeight)
-        //        {
-        //            imageHeight = bookmarkHeight;
-        //            imageWidth = (long)(imageHeight * aspectRatio);
-        //        }
-
-        //        // Create the drawing element using the calculated dimensions
-        //        return new Drawing(
-        //            new Inline(
-        //                new Extent { Cx = imageWidth, Cy = imageHeight },
-        //                new EffectExtent
-        //                {
-        //                    LeftEdge = 0L,
-        //                    TopEdge = 0L,
-        //                    RightEdge = 0L,
-        //                    BottomEdge = 0L
-        //                },
-        //                new DocProperties
-        //                {
-        //                    Id = (UInt32Value)1U,
-        //                    Name = "Picture"
-        //                },
-        //                new DocumentFormat.OpenXml.Drawing.NonVisualGraphicFrameDrawingProperties(new GraphicFrameLocks { NoChangeAspect = true }),
-        //                new Graphic(
-        //                    new GraphicData(
-        //                        new DocumentFormat.OpenXml.Drawing.Pictures.Picture(
-        //                            new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureProperties(
-        //                                new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualDrawingProperties
-        //                                {
-        //                                    Id = (UInt32Value)0U,
-        //                                    Name = "New Image.jpg"
-        //                                },
-        //                                new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureDrawingProperties()
-        //                            ),
-        //                            new DocumentFormat.OpenXml.Drawing.Pictures.BlipFill(
-        //                                new Blip { Embed = relationshipId },
-        //                                new Stretch(new FillRectangle())
-        //                            ),
-        //                            new DocumentFormat.OpenXml.Drawing.Pictures.ShapeProperties(
-        //                                new Transform2D(
-        //                                    new Offset { X = 0L, Y = 0L },
-        //                                    new Extents { Cx = imageWidth, Cy = imageHeight }
-        //                                ),
-        //                                new PresetGeometry(new AdjustValueList())
-        //                                { Preset = ShapeTypeValues.Rectangle }
-        //                            )
-        //                        )
-        //                    )
-        //                    { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" }
-        //                )
-        //            )
-        //            {
-        //                DistanceFromTop = (UInt32Value)0U,
-        //                DistanceFromBottom = (UInt32Value)0U,
-        //                DistanceFromLeft = (UInt32Value)0U,
-        //                DistanceFromRight = (UInt32Value)0U,
-        //                EditId = "50D07946"
-        //            });
-        //    }
-        //}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         private static bool InsertImageAtBookmark(WordprocessingDocument wordDoc, BookmarkStart bookmarkStart, string imagePath)
         {
             if (!File.Exists(imagePath))
@@ -946,6 +587,87 @@ namespace BMH
             }
         }
 
+
+
+
+        //public static void ReplaceImageInDocument(string docxFilePath, string oldImageName, string newImagePath)
+        //{
+        //    // Open the Word document
+        //    using (WordprocessingDocument wordDoc = WordprocessingDocument.Open(docxFilePath, true))
+        //    {
+        //        // Get the main document part
+        //        var mainPart = wordDoc.MainDocumentPart;
+
+        //        // Check if the old image exists in the media folder
+        //        var mediaFolder = Path.Combine(Path.GetDirectoryName(docxFilePath), "word", "media");
+
+        //        string oldImagePath = Path.Combine(mediaFolder, oldImageName);
+        //        if (!File.Exists(oldImagePath))
+        //        {
+        //            Console.WriteLine($"Old image '{oldImageName}' not found in the media folder.");
+        //            return;
+        //        }
+
+        //        // Replace the old image with the new one
+        //        string newImageName = Path.GetFileName(newImagePath);
+        //        string newImagePathInMedia = Path.Combine(mediaFolder, newImageName);
+
+        //        // Overwrite the old image with the new one
+        //        File.Copy(newImagePath, newImagePathInMedia, true);
+
+        //        // Update the image relationships in the document's XML
+        //        UpdateImageRelationships(wordDoc, oldImageName, newImageName);
+
+        //        // Update any bookmarks referencing this image
+        //        UpdateBookmarkImageReferences(wordDoc, oldImageName, newImageName);
+
+        //        Console.WriteLine("Image replacement and relationship updates completed.");
+        //    }
+        //}
+
+        //private static void UpdateImageRelationships(WordprocessingDocument wordDoc, string oldImageName, string newImageName)
+        //{
+        //    // Path to the relationships file for the document
+        //    var relsFilePath = wordDoc.ExtendedPropertiesPart.Uri.OriginalString;
+        //    XDocument relsDoc = XDocument.Load(relsFilePath);
+
+        //    // Find and update the old image's relationship
+        //    var imageRelationship = relsDoc.Descendants().FirstOrDefault(
+        //        r => r.Name.LocalName == "Relationship" && r.Attribute("Target").Value.Contains(oldImageName));
+
+        //    if (imageRelationship != null)
+        //    {
+        //        imageRelationship.SetAttributeValue("Target", "media/" + newImageName);
+        //        relsDoc.Save(relsFilePath);
+        //    }
+        //}
+
+        //private static void UpdateBookmarkImageReferences(WordprocessingDocument wordDoc, string oldImageName, string newImageName)
+        //{
+        //    // Traverse through all bookmarks and their images
+        //    var bookmarks = wordDoc.MainDocumentPart.Document.Descendants<BookmarkStart>();
+
+        //    foreach (var bookmark in bookmarks)
+        //    {
+        //        // Find runs with embedded images at the bookmark location
+        //        var runsWithImages = bookmark.Parent.Descendants<Run>().Where(r =>
+        //            r.Descendants<DocumentFormat.OpenXml.Wordprocessing.Drawing>().Any(d =>
+        //                d.Descendants < DocumentFormat.OpenXml.Drawing.Pictures.Blip).Any(b =>
+        //                    b.Embed.Value.Contains(oldImageName))).ToList());
+
+        //        foreach (var run in runsWithImages)
+        //        {
+        //            var drawing = run.Descendants<DocumentFormat.OpenXml.Wordprocessing.Drawing>().FirstOrDefault();
+        //            var blip = drawing?.Descendants<DocumentFormat.OpenXml.Drawing.Pictures.Blip>().FirstOrDefault();
+
+        //            if (blip != null)
+        //            {
+        //                // Update the reference to the new image
+        //                blip.Embed = newDocumentPart.GetIdOfPart(newImageName);
+        //            }
+        //        }
+        //    }
+        //}
 
 
     }
